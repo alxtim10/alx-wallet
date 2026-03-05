@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: alx_wallet_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: alx_wallet_user
+      POSTGRES_PASSWORD: alx_wallet_pass
+      POSTGRES_DB: alx_wallet_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+
+  alx-wallet-api:
+    build: .
+    container_name: alx_wallet_api
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: alx_wallet_user
+      DB_PASSWORD: alx_wallet_pass
+      DB_NAME: alx_wallet_db
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:
