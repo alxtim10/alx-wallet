@@ -48,5 +48,5 @@ func (h *WalletHandler) Transfer(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"status": "success"})
+	c.JSON(http.StatusOK, gin.H{"status": "success", "from_user_id": req.FromUserID, "to_user_id": req.ToUserID, "amount": req.Amount})
 }
