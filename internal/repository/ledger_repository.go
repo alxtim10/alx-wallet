@@ -62,9 +62,23 @@ func (r *LedgerRepository) Transfer(ctx context.Context, from, to uuid.UUID, amo
 	}
 
 	_, err = tx.Exec(ctx,
+		`UPDATE accounts SET balance = balance - $1 WHERE user_id = $2`,
+		amount, from)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(ctx,
 		`INSERT INTO ledger_entries (id,journal_id,account_id,amount,entry_type)
 		 VALUES ($1,$2,$3,$4,'credit')`,
 		uuid.New(), journalID, to, amount)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(ctx,
+		`UPDATE accounts SET balance = balance + $1 WHERE user_id = $2`,
+		amount, to)
 	if err != nil {
 		return err
 	}
