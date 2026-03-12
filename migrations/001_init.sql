@@ -19,10 +19,10 @@ CREATE TABLE journal_entries (
 CREATE TABLE ledger_entries (
     id UUID PRIMARY KEY,
     journal_id UUID REFERENCES journal_entries(id),
-    account_id UUID REFERENCES accounts(id),
+    user_id UUID REFERENCES accounts(id),
     amount NUMERIC(20,2) NOT NULL CHECK (amount > 0),
     entry_type VARCHAR(10) CHECK (entry_type IN ('debit','credit')),
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_ledger_account ON ledger_entries(account_id);
+CREATE INDEX idx_ledger_account ON ledger_entries(user_id);

@@ -176,7 +176,7 @@ ledger_entries
 --------------
 id
 journal_id
-account_id
+user_id
 amount
 entry_type
 created_at
@@ -326,7 +326,7 @@ Response
 
 ```json
 {
-  "account_id": "uuid"
+  "user_id": "uuid"
 }
 ```
 
@@ -335,7 +335,7 @@ Response
 # Get Balance
 
 ```
-GET /accounts/{account_id}/balance
+GET /accounts/{user_id}/balance
 ```
 
 Example
@@ -348,7 +348,7 @@ Response
 
 ```json
 {
-  "account_id": "uuid",
+  "user_id": "uuid",
   "balance": 1000
 }
 ```
@@ -371,8 +371,8 @@ Request
 
 ```json
 {
-  "from_account_id": "uuid",
-  "to_account_id": "uuid",
+  "from_user_id": "uuid",
+  "to_user_id": "uuid",
   "amount": 500,
   "reference_id": "transfer-001"
 }

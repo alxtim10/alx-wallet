@@ -31,7 +31,7 @@ func (r *LedgerRepository) GetBalance(ctx context.Context, userID uuid.UUID) (fl
 	// 		END
 	// 	),0)
 	// 	FROM ledger_entries
-	// 	WHERE account_id = $1
+	// 	WHERE user_id = $1
 	// `, accountID).Scan(&balance)
 	return balance, err
 }
@@ -54,7 +54,7 @@ func (r *LedgerRepository) Transfer(ctx context.Context, from, to uuid.UUID, amo
 	}
 
 	_, err = tx.Exec(ctx,
-		`INSERT INTO ledger_entries (id,journal_id,account_id,amount,entry_type)
+		`INSERT INTO ledger_entries (id,journal_id,user_id,amount,entry_type)
 		 VALUES ($1,$2,$3,$4,'debit')`,
 		uuid.New(), journalID, from, amount)
 	if err != nil {
@@ -69,7 +69,7 @@ func (r *LedgerRepository) Transfer(ctx context.Context, from, to uuid.UUID, amo
 	}
 
 	_, err = tx.Exec(ctx,
-		`INSERT INTO ledger_entries (id,journal_id,account_id,amount,entry_type)
+		`INSERT INTO ledger_entries (id,journal_id,user_id,amount,entry_type)
 		 VALUES ($1,$2,$3,$4,'credit')`,
 		uuid.New(), journalID, to, amount)
 	if err != nil {

@@ -11,9 +11,9 @@ type Account struct {
 }
 
 type TransferRequest struct {
-	FromAccountID uuid.UUID `json:"from_account_id"`
-	ToAccountID   uuid.UUID `json:"to_account_id"`
-	Amount        float64   `json:"amount"`
+	FromUserID uuid.UUID `json:"from_user_id"`
+	ToUserID   uuid.UUID `json:"to_user_id"`
+	Amount     float64   `json:"amount"`
 }
 
 type CreateAccountRequest struct {

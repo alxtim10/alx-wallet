@@ -28,7 +28,7 @@ func (h *WalletHandler) CreateAccount(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"account_id": id, "name": req.Name, "balance": req.Balance, "type": "user"})
+	c.JSON(http.StatusOK, gin.H{"user_id": id, "name": req.Name, "balance": req.Balance, "type": "user"})
 }
 
 func (h *WalletHandler) GetBalance(c *gin.Context) {
@@ -43,7 +43,7 @@ func (h *WalletHandler) Transfer(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, err)
 		return
 	}
-	err := h.service.Transfer(c, req.FromAccountID, req.ToAccountID, req.Amount)
+	err := h.service.Transfer(c, req.FromUserID, req.ToUserID, req.Amount)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, err)
 		return
