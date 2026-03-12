@@ -16,18 +16,23 @@ func NewLedgerRepository(db *pgxpool.Pool) *LedgerRepository {
 	return &LedgerRepository{db: db}
 }
 
-func (r *LedgerRepository) GetBalance(ctx context.Context, accountID uuid.UUID) (float64, error) {
+func (r *LedgerRepository) GetBalance(ctx context.Context, userID uuid.UUID) (float64, error) {
 	var balance float64
 	err := r.db.QueryRow(ctx, `
-		SELECT COALESCE(SUM(
-			CASE 
-				WHEN entry_type = 'credit' THEN amount
-				WHEN entry_type = 'debit' THEN -amount
-			END
-		),0)
-		FROM ledger_entries
-		WHERE account_id = $1
-	`, accountID).Scan(&balance)
+		SELECT balance
+		FROM accounts
+		WHERE user_id = $1
+	`, userID).Scan(&balance)
+	// err := r.db.QueryRow(ctx, `
+	// 	SELECT COALESCE(SUM(
+	// 		CASE
+	// 			WHEN entry_type = 'credit' THEN amount
+	// 			WHEN entry_type = 'debit' THEN -amount
+	// 		END
+	// 	),0)
+	// 	FROM ledger_entries
+	// 	WHERE account_id = $1
+	// `, accountID).Scan(&balance)
 	return balance, err
 }
 

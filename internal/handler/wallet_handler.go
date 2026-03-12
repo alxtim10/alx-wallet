@@ -18,13 +18,17 @@ func NewWalletHandler(s *service.WalletService) *WalletHandler {
 }
 
 func (h *WalletHandler) CreateAccount(c *gin.Context) {
-	userID := uuid.New()
-	id, err := h.service.CreateAccount(c, userID)
+	var req domain.CreateAccountRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+	id, err := h.service.CreateAccount(c, req.Name, req.Balance)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"account_id": id})
+	c.JSON(http.StatusOK, gin.H{"account_id": id, "name": req.Name, "balance": req.Balance, "type": "user"})
 }
 
 func (h *WalletHandler) GetBalance(c *gin.Context) {

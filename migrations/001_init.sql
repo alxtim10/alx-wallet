@@ -4,6 +4,8 @@ CREATE TABLE accounts (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL,
     type VARCHAR(20) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    balance NUMERIC(20,2) NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT NOW()
 );
 

@@ -16,9 +16,9 @@ func NewWalletService(a *repository.AccountRepository, l *repository.LedgerRepos
 	return &WalletService{a, l}
 }
 
-func (s *WalletService) CreateAccount(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
+func (s *WalletService) CreateAccount(ctx context.Context, name string, balance float64) (uuid.UUID, error) {
 	id := uuid.New()
-	return id, s.accountRepo.Create(ctx, id, userID, "user")
+	return id, s.accountRepo.Create(ctx, id, id, "user", name, balance)
 }
 
 func (s *WalletService) GetBalance(ctx context.Context, accountID uuid.UUID) (float64, error) {
