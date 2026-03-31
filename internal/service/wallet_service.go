@@ -38,20 +38,20 @@ func NewWalletService(
 }
 
 // CreateAccount creates a new wallet account for the given user.
-func (s *WalletSvc) CreateAccount(ctx context.Context, userID uuid.UUID, accountType domain.AccountType) (*domain.Account, error) {
+func (s *WalletSvc) CreateAccount(ctx context.Context, username string, accountType domain.AccountType, password string) (*domain.Account, error) {
 	if !accountType.IsValid() {
 		return nil, domain.ErrInvalidAccountType
 	}
 
-	acc, err := s.accounts.Create(ctx, userID, accountType)
+	acc, err := s.accounts.Create(ctx, username, accountType, password)
 	if err != nil {
-		s.log.Error("failed to create account", zap.String("user_id", userID.String()), zap.Error(err))
+		s.log.Error("failed to create account", zap.String("username", username), zap.Error(err))
 		return nil, err
 	}
 
 	s.log.Info("account created",
 		zap.String("account_id", acc.ID.String()),
-		zap.String("user_id", userID.String()),
+		zap.String("username", username),
 		zap.String("type", string(accountType)),
 	)
 	return acc, nil
@@ -59,8 +59,8 @@ func (s *WalletSvc) CreateAccount(ctx context.Context, userID uuid.UUID, account
 
 // GetBalance returns the current balance for a user's wallet account.
 // It uses a short-lived Redis cache to avoid hitting Postgres on every read.
-func (s *WalletSvc) GetBalance(ctx context.Context, userID uuid.UUID) (domain.Money, error) {
-	acc, err := s.accounts.GetByUserID(ctx, userID, domain.AccountTypeWallet)
+func (s *WalletSvc) GetBalance(ctx context.Context, username string) (domain.Money, error) {
+	acc, err := s.accounts.GetByUsername(ctx, username)
 	if err != nil {
 		return 0, err
 	}
@@ -68,7 +68,7 @@ func (s *WalletSvc) GetBalance(ctx context.Context, userID uuid.UUID) (domain.Mo
 	// Try cache first.
 	cacheKey := balanceCacheKey(acc.ID)
 	if cached, err := s.cache.Get(ctx, cacheKey).Int64(); err == nil {
-		s.log.Debug("balance cache hit", zap.String("account_id", acc.ID.String()))
+		s.log.Debug("balance cache hit", zap.String("id", acc.ID.String()))
 		return domain.Money(cached), nil
 	}
 
@@ -103,11 +103,11 @@ func (s *WalletSvc) Transfer(ctx context.Context, req domain.TransferRequest) er
 	}
 
 	// ── Resolve accounts ──────────────────────────────────────────────────────
-	fromAcc, err := s.accounts.GetByUserID(ctx, req.FromUserID, domain.AccountTypeWallet)
+	fromAcc, err := s.accounts.GetByID(ctx, req.FromUserID)
 	if err != nil {
 		return fmt.Errorf("sender: %w", err)
 	}
-	toAcc, err := s.accounts.GetByUserID(ctx, req.ToUserID, domain.AccountTypeWallet)
+	toAcc, err := s.accounts.GetByID(ctx, req.ToUserID)
 	if err != nil {
 		return fmt.Errorf("receiver: %w", err)
 	}

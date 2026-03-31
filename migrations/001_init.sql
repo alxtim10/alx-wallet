@@ -12,15 +12,16 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS accounts (
     id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    UUID        NOT NULL,
+    username   VARCHAR(20) NOT NULL,
     type       VARCHAR(20) NOT NULL CHECK (type IN ('wallet', 'escrow', 'system')),
+    password TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     -- One account of each type per user
-    CONSTRAINT uq_accounts_user_type UNIQUE (user_id, type)
+    CONSTRAINT uq_accounts_username_type UNIQUE (username, type)
 );
 
-CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_accounts_username ON accounts(username);
 
 -- =============================================================================
 -- journal_entries

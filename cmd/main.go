@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
+
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -38,24 +39,16 @@ func main() {
 	}
 	defer log.Sync() //nolint:errcheck
 
-	// ── Database ──────────────────────────────────────────────────────────────
-	dbCfg, err := pgxpool.ParseConfig(cfg.Database.DSN)
-	if err != nil {
-		log.Fatal("invalid database DSN", zap.Error(err))
-	}
-	dbCfg.MaxConns = int32(cfg.Database.MaxOpenConns)
-	dbCfg.MinConns = int32(cfg.Database.MaxIdleConns)
-	dbCfg.MaxConnLifetime = cfg.Database.ConnMaxLifetime
+	// ── Context (for shutdown signals) ─────────────────────────────────────────
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
-	db, err := pgxpool.NewWithConfig(context.Background(), dbCfg)
+	// ── Database ──────────────────────────────────────────────────────────────
+	db, err := initDB(cfg, log)
 	if err != nil {
-		log.Fatal("failed to connect to database", zap.Error(err))
+		log.Fatal("database initialization failed", zap.Error(err))
 	}
 	defer db.Close()
-
-	if err := db.Ping(context.Background()); err != nil {
-		log.Fatal("database ping failed", zap.Error(err))
-	}
 	log.Info("database connected")
 
 	// ── Redis ─────────────────────────────────────────────────────────────────
@@ -65,7 +58,6 @@ func main() {
 		DB:       cfg.Redis.DB,
 	})
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
-		// Redis is a cache — warn but don't crash the service.
 		log.Warn("redis unavailable, cache disabled", zap.Error(err))
 	} else {
 		log.Info("redis connected")
@@ -75,6 +67,7 @@ func main() {
 	// ── Repositories ──────────────────────────────────────────────────────────
 	accountRepo := repository.NewAccountRepo(db)
 	ledgerRepo := repository.NewLedgerRepo(db)
+	txRepo := repository.NewTransactionRepo(db)
 
 	// ── Services ──────────────────────────────────────────────────────────────
 	walletSvc := service.NewWalletService(accountRepo, ledgerRepo, rdb, log)
@@ -88,17 +81,12 @@ func main() {
 		middleware.Logger(log),
 	)
 
-	// Health check (no auth required)
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	walletHandler := handler.NewWalletHandler(walletSvc, log)
-	walletHandler.RegisterRoutes(router)
-
-	txRepo := repository.NewTransactionRepo(db)
-	txHandler := handler.NewTransactionHandler(txRepo, log)
-	txHandler.RegisterRoutes(router)
+	handler.NewWalletHandler(walletSvc, log).RegisterRoutes(router)
+	handler.NewTransactionHandler(txRepo, log).RegisterRoutes(router)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Server.Port,
@@ -107,24 +95,61 @@ func main() {
 		WriteTimeout: cfg.Server.WriteTimeout,
 	}
 
-	// ── Graceful shutdown ─────────────────────────────────────────────────────
+	// ── Start server ──────────────────────────────────────────────────────────
 	go func() {
 		log.Info("server starting", zap.String("port", cfg.Server.Port))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal("server error", zap.Error(err))
+			log.Error("server error", zap.Error(err))
 		}
 	}()
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+	// ── Wait for shutdown signal ──────────────────────────────────────────────
+	<-ctx.Done()
+	log.Info("shutdown signal received")
 
-	log.Info("shutting down server...")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// ── Graceful shutdown ─────────────────────────────────────────────────────
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
+	log.Info("shutting down server...")
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Error("forced shutdown", zap.Error(err))
 	}
+
 	log.Info("server stopped")
+}
+
+// ── DB Initialization with Retry ────────────────────────────────────────────
+func initDB(cfg *config.Config, log *zap.Logger) (*pgxpool.Pool, error) {
+	dbCfg, err := pgxpool.ParseConfig(cfg.Database.DSN)
+	if err != nil {
+		return nil, fmt.Errorf("invalid DSN: %w", err)
+	}
+
+	dbCfg.MaxConns = int32(cfg.Database.MaxOpenConns)
+	dbCfg.MinConns = int32(cfg.Database.MaxIdleConns)
+	dbCfg.MaxConnLifetime = cfg.Database.ConnMaxLifetime
+
+	db, err := pgxpool.NewWithConfig(context.Background(), dbCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	// Retry logic
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	for i := 0; i < 10; i++ {
+		if err := db.Ping(ctx); err == nil {
+			return db, nil
+		} else {
+			log.Warn("database not ready, retrying...",
+				zap.Int("attempt", i+1),
+				zap.Error(err),
+			)
+		}
+		time.Sleep(2 * time.Second)
+	}
+
+	return nil, fmt.Errorf("database not reachable after retries")
 }

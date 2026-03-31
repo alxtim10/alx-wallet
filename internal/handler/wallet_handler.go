@@ -26,10 +26,10 @@ func NewWalletHandler(svc domain.WalletService, log *zap.Logger) *WalletHandler 
 
 // RegisterRoutes wires all routes onto the given engine.
 func (h *WalletHandler) RegisterRoutes(r *gin.Engine) {
-	v1 := r.Group("/v1")
+	v1 := r.Group("/api")
 	{
 		v1.POST("/accounts", h.CreateAccount)
-		v1.GET("/accounts/:user_id/balance", h.GetBalance)
+		// v1.GET("/accounts/:username/balance", h.GetBalance)
 		v1.POST("/transfers", h.Transfer)
 	}
 }
@@ -37,13 +37,14 @@ func (h *WalletHandler) RegisterRoutes(r *gin.Engine) {
 // ── POST /v1/accounts ────────────────────────────────────────────────────────
 
 type createAccountRequest struct {
-	UserID string `json:"user_id" binding:"required,uuid"`
-	Type   string `json:"type"    binding:"required,oneof=wallet escrow system"`
+	Username string `json:"username" binding:"required"`
+	Type     string `json:"type"    binding:"required,oneof=wallet escrow system"`
+	Password string `json:"password" binding:"required,min=6,max=20"`
 }
 
 type createAccountResponse struct {
 	AccountID string `json:"account_id"`
-	UserID    string `json:"user_id"`
+	Username  string `json:"username"`
 	Type      string `json:"type"`
 	CreatedAt string `json:"created_at"`
 }
@@ -55,9 +56,7 @@ func (h *WalletHandler) CreateAccount(c *gin.Context) {
 		return
 	}
 
-	userID, _ := uuid.Parse(req.UserID) // already validated by binding tag
-
-	acc, err := h.svc.CreateAccount(c.Request.Context(), userID, domain.AccountType(req.Type))
+	acc, err := h.svc.CreateAccount(c.Request.Context(), req.Username, domain.AccountType(req.Type), req.Password)
 	if err != nil {
 		appErr := apperror.FromDomain(err)
 		c.JSON(appErr.Code, appErr)
@@ -66,7 +65,7 @@ func (h *WalletHandler) CreateAccount(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, createAccountResponse{
 		AccountID: acc.ID.String(),
-		UserID:    acc.UserID.String(),
+		Username:  req.Username,
 		Type:      string(acc.Type),
 		CreatedAt: acc.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	})
@@ -75,18 +74,19 @@ func (h *WalletHandler) CreateAccount(c *gin.Context) {
 // ── GET /v1/accounts/:user_id/balance ────────────────────────────────────────
 
 type balanceResponse struct {
-	UserID  string `json:"user_id"`
-	Balance int64  `json:"balance"`
+	UserID   string `json:"user_id"`
+	Username string `json:"username"`
+	Balance  int64  `json:"balance"`
 }
 
 func (h *WalletHandler) GetBalance(c *gin.Context) {
-	userID, err := uuid.Parse(c.Param("user_id"))
+	username, err := uuid.Parse(c.Param("username"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id must be a valid UUID"})
 		return
 	}
 
-	balance, err := h.svc.GetBalance(c.Request.Context(), userID)
+	balance, err := h.svc.GetBalance(c.Request.Context(), username.String())
 	if err != nil {
 		appErr := apperror.FromDomain(err)
 		c.JSON(appErr.Code, appErr)
@@ -94,8 +94,8 @@ func (h *WalletHandler) GetBalance(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, balanceResponse{
-		UserID:  userID.String(),
-		Balance: int64(balance),
+		Username: username.String(),
+		Balance:  int64(balance),
 	})
 }
 

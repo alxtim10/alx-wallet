@@ -14,6 +14,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"alx-wallet/internal/domain"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 const pgErrUniqueViolation = "23505"
@@ -28,18 +30,26 @@ func NewAccountRepo(db *pgxpool.Pool) *AccountRepo {
 }
 
 // Create inserts a new account and returns the fully populated domain model.
-func (r *AccountRepo) Create(ctx context.Context, userID uuid.UUID, accountType domain.AccountType) (*domain.Account, error) {
+func (r *AccountRepo) Create(ctx context.Context, username string, accountType domain.AccountType, password string) (*domain.Account, error) {
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("account create: %w", err)
+	}
+	hashStr := string(hash)
+
 	acc := &domain.Account{
-		ID:        uuid.New(),
-		UserID:    userID,
-		Type:      accountType,
-		CreatedAt: time.Now().UTC(),
+		ID:           uuid.New(),
+		Username:     username,
+		Type:         accountType,
+		PasswordHash: hashStr,
+		CreatedAt:    time.Now().UTC(),
 	}
 
-	_, err := r.db.Exec(ctx,
-		`INSERT INTO accounts (id, user_id, type, created_at)
-		 VALUES ($1, $2, $3, $4)`,
-		acc.ID, acc.UserID, acc.Type, acc.CreatedAt,
+	_, err = r.db.Exec(ctx,
+		`INSERT INTO accounts (id, username, type, created_at, password)
+		 VALUES ($1, $2, $3, $4, $5)`,
+		acc.ID, acc.Username, acc.Type, acc.CreatedAt, hashStr,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("account create: %w", err)
@@ -50,27 +60,27 @@ func (r *AccountRepo) Create(ctx context.Context, userID uuid.UUID, accountType 
 // GetByID fetches a single account by its primary key.
 func (r *AccountRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
 	row := r.db.QueryRow(ctx,
-		`SELECT id, user_id, type, created_at FROM accounts WHERE id = $1`,
+		`SELECT id, username, type, created_at, password FROM accounts WHERE id = $1`,
 		id,
 	)
 	return scanAccount(row)
 }
 
-// GetByUserID fetches a user's account of a specific type.
-func (r *AccountRepo) GetByUserID(ctx context.Context, userID uuid.UUID, accountType domain.AccountType) (*domain.Account, error) {
+// GetByUsername fetches a user's account of a specific type.
+func (r *AccountRepo) GetByUsername(ctx context.Context, username string) (*domain.Account, error) {
 	row := r.db.QueryRow(ctx,
-		`SELECT id, user_id, type, created_at
+		`SELECT id, username, type, created_at, password
 		 FROM   accounts
-		 WHERE  user_id = $1 AND type = $2
+		 WHERE  username = $1
 		 LIMIT  1`,
-		userID, accountType,
+		username,
 	)
 	return scanAccount(row)
 }
 
 func scanAccount(row pgx.Row) (*domain.Account, error) {
 	var a domain.Account
-	err := row.Scan(&a.ID, &a.UserID, &a.Type, &a.CreatedAt)
+	err := row.Scan(&a.ID, &a.Username, &a.Type, &a.CreatedAt, &a.PasswordHash)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrAccountNotFound

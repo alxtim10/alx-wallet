@@ -71,10 +71,11 @@ const (
 // Account represents a wallet account. One user can have multiple accounts
 // of different types (wallet, escrow, system).
 type Account struct {
-	ID        uuid.UUID
-	UserID    uuid.UUID
-	Type      AccountType
-	CreatedAt time.Time
+	ID           uuid.UUID
+	Username     string
+	Type         AccountType
+	PasswordHash string `db:"password" json:"-"`
+	CreatedAt    time.Time
 }
 
 // JournalEntry is the logical record of a financial transaction.
@@ -103,9 +104,9 @@ type LedgerEntry struct {
 // Infrastructure (postgres, redis) implements these interfaces.
 
 type AccountRepository interface {
-	Create(ctx context.Context, userID uuid.UUID, accountType AccountType) (*Account, error)
+	Create(ctx context.Context, username string, accountType AccountType, password string) (*Account, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*Account, error)
-	GetByUserID(ctx context.Context, userID uuid.UUID, accountType AccountType) (*Account, error)
+	GetByUsername(ctx context.Context, username string) (*Account, error)
 }
 
 type LedgerRepository interface {
@@ -129,8 +130,8 @@ type RecordTransferRequest struct {
 // ─── Service Interface ───────────────────────────────────────────────────────
 
 type WalletService interface {
-	CreateAccount(ctx context.Context, userID uuid.UUID, accountType AccountType) (*Account, error)
-	GetBalance(ctx context.Context, userID uuid.UUID) (Money, error)
+	CreateAccount(ctx context.Context, username string, accountType AccountType, password string) (*Account, error)
+	GetBalance(ctx context.Context, username string) (Money, error)
 	Transfer(ctx context.Context, req TransferRequest) error
 }
 
