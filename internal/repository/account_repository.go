@@ -58,6 +58,28 @@ func (r *AccountRepo) Create(ctx context.Context, username string, accountType d
 	return acc, nil
 }
 
+func (r *AccountRepo) TopUp(ctx context.Context, username string, balance domain.Money) (*domain.Account, error) {
+	d, err := r.GetByUsername(ctx, username)
+	if err != nil {
+		return nil, err
+	}
+	acc := &domain.Account{
+		ID:       d.ID,
+		Username: d.Username,
+		Balance:  balance + d.Balance,
+	}
+	_, err = r.db.Exec(ctx,
+		`UPDATE accounts
+		 SET balance = balance + $1
+		 WHERE username = $2`,
+		balance, username,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("account top up: %w", err)
+	}
+	return acc, nil
+}
+
 // GetByID fetches a single account by its primary key.
 func (r *AccountRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
 	row := r.db.QueryRow(ctx,

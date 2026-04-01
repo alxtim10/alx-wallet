@@ -29,6 +29,7 @@ func (h *WalletHandler) RegisterRoutes(r *gin.Engine) {
 	v1 := r.Group("/api")
 	{
 		v1.POST("/accounts", h.CreateAccount)
+		v1.POST("/topup", h.TopUp)
 		// v1.GET("/accounts/:username/balance", h.GetBalance)
 		v1.POST("/transfers", h.Transfer)
 	}
@@ -70,6 +71,39 @@ func (h *WalletHandler) CreateAccount(c *gin.Context) {
 		Type:      string(acc.Type),
 		Balance:   int64(acc.Balance),
 		CreatedAt: acc.CreatedAt.Format("2006-01-02T15:04:05Z"),
+	})
+}
+
+type topUpRequest struct {
+	Username string `json:"username" binding:"required"`
+	Balance  int64  `json:"balance" binding:"required,min=1"`
+}
+
+type topUpResponse struct {
+	AccountID string `json:"account_id"`
+	Username  string `json:"username"`
+	Balance   int64  `json:"balance"`
+}
+
+func (h *WalletHandler) TopUp(c *gin.Context) {
+	var req topUpRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	acc, err := h.svc.TopUp(c.Request.Context(), req.Username, domain.Money(req.Balance))
+	if err != nil {
+		appErr := apperror.FromDomain(err)
+		c.JSON(appErr.Code, appErr)
+		return
+	}
+
+	c.JSON(http.StatusCreated, topUpResponse{
+		AccountID: acc.ID.String(),
+		Username:  req.Username,
+		Balance:   int64(acc.Balance),
 	})
 }
 

@@ -57,6 +57,20 @@ func (s *WalletSvc) CreateAccount(ctx context.Context, username string, accountT
 	return acc, nil
 }
 
+// TopUp top up the balance for a user's wallet account.
+func (s *WalletSvc) TopUp(ctx context.Context, username string, balance domain.Money) (*domain.Account, error) {
+	if !balance.IsPositive() {
+		return nil, domain.ErrInvalidAmount
+	}
+	acc, err := s.accounts.TopUp(ctx, username, balance)
+	if err != nil {
+		s.log.Error("failed to top up account", zap.String("username", username), zap.Error(err))
+		return nil, err
+	}
+
+	return acc, nil
+}
+
 // GetBalance returns the current balance for a user's wallet account.
 // It uses a short-lived Redis cache to avoid hitting Postgres on every read.
 func (s *WalletSvc) GetBalance(ctx context.Context, username string) (domain.Money, error) {

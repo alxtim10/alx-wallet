@@ -106,6 +106,7 @@ type LedgerEntry struct {
 
 type AccountRepository interface {
 	Create(ctx context.Context, username string, accountType AccountType, password string) (*Account, error)
+	TopUp(ctx context.Context, username string, balance Money) (*Account, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*Account, error)
 	GetByUsername(ctx context.Context, username string) (*Account, error)
 }
@@ -132,6 +133,7 @@ type RecordTransferRequest struct {
 
 type WalletService interface {
 	CreateAccount(ctx context.Context, username string, accountType AccountType, password string) (*Account, error)
+	TopUp(ctx context.Context, username string, balance Money) (*Account, error)
 	GetBalance(ctx context.Context, username string) (Money, error)
 	Transfer(ctx context.Context, req TransferRequest) error
 }
