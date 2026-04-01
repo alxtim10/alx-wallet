@@ -46,6 +46,7 @@ type createAccountResponse struct {
 	AccountID string `json:"account_id"`
 	Username  string `json:"username"`
 	Type      string `json:"type"`
+	Balance   int64  `json:"balance"`
 	CreatedAt string `json:"created_at"`
 }
 
@@ -67,6 +68,7 @@ func (h *WalletHandler) CreateAccount(c *gin.Context) {
 		AccountID: acc.ID.String(),
 		Username:  req.Username,
 		Type:      string(acc.Type),
+		Balance:   int64(acc.Balance),
 		CreatedAt: acc.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	})
 }

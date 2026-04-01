@@ -74,6 +74,7 @@ type Account struct {
 	ID           uuid.UUID
 	Username     string
 	Type         AccountType
+	Balance      Money
 	PasswordHash string `db:"password" json:"-"`
 	CreatedAt    time.Time
 }

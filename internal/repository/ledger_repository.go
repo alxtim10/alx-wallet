@@ -29,12 +29,9 @@ func NewLedgerRepo(db *pgxpool.Pool) *LedgerRepo {
 func (r *LedgerRepo) GetBalance(ctx context.Context, accountID uuid.UUID) (domain.Money, error) {
 	var balance int64
 	err := r.db.QueryRow(ctx,
-		`SELECT COALESCE(
-		    SUM(CASE WHEN entry_type = 'credit' THEN amount ELSE 0 END) -
-		    SUM(CASE WHEN entry_type = 'debit'  THEN amount ELSE 0 END),
-		 0)
-		 FROM ledger_entries
-		 WHERE account_id = $1`,
+		`SELECT balance
+		 FROM accounts
+		 WHERE id = $1`,
 		accountID,
 	).Scan(&balance)
 	if err != nil {

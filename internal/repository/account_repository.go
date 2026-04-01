@@ -42,13 +42,14 @@ func (r *AccountRepo) Create(ctx context.Context, username string, accountType d
 		ID:           uuid.New(),
 		Username:     username,
 		Type:         accountType,
+		Balance:      domain.Money(0),
 		PasswordHash: hashStr,
 		CreatedAt:    time.Now().UTC(),
 	}
 
 	_, err = r.db.Exec(ctx,
-		`INSERT INTO accounts (id, username, type, created_at, password)
-		 VALUES ($1, $2, $3, $4, $5)`,
+		`INSERT INTO accounts (id, username, type, balance, created_at, password)
+		 VALUES ($1, $2, $3, 0, $4, $5)`,
 		acc.ID, acc.Username, acc.Type, acc.CreatedAt, hashStr,
 	)
 	if err != nil {
@@ -60,7 +61,7 @@ func (r *AccountRepo) Create(ctx context.Context, username string, accountType d
 // GetByID fetches a single account by its primary key.
 func (r *AccountRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
 	row := r.db.QueryRow(ctx,
-		`SELECT id, username, type, created_at, password FROM accounts WHERE id = $1`,
+		`SELECT id, username, type, balance, created_at, password FROM accounts WHERE id = $1`,
 		id,
 	)
 	return scanAccount(row)
@@ -69,7 +70,7 @@ func (r *AccountRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Accoun
 // GetByUsername fetches a user's account of a specific type.
 func (r *AccountRepo) GetByUsername(ctx context.Context, username string) (*domain.Account, error) {
 	row := r.db.QueryRow(ctx,
-		`SELECT id, username, type, created_at, password
+		`SELECT id, username, type, balance, created_at, password
 		 FROM   accounts
 		 WHERE  username = $1
 		 LIMIT  1`,
@@ -80,7 +81,7 @@ func (r *AccountRepo) GetByUsername(ctx context.Context, username string) (*doma
 
 func scanAccount(row pgx.Row) (*domain.Account, error) {
 	var a domain.Account
-	err := row.Scan(&a.ID, &a.Username, &a.Type, &a.CreatedAt, &a.PasswordHash)
+	err := row.Scan(&a.ID, &a.Username, &a.Type, &a.Balance, &a.CreatedAt, &a.PasswordHash)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrAccountNotFound

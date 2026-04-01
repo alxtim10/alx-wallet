@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     username   VARCHAR(20) NOT NULL,
     type       VARCHAR(20) NOT NULL CHECK (type IN ('wallet', 'escrow', 'system')),
+    balance     BIGINT      NOT NULL CHECK (balance >= 0),
     password TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
