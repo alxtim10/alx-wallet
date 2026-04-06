@@ -37,6 +37,14 @@ func NewWalletService(
 	}
 }
 
+func (s *WalletSvc) GetAllAccounts(ctx context.Context) ([]*domain.Account, error) {
+	accounts, err := s.accounts.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return accounts, nil
+}
+
 // CreateAccount creates a new wallet account for the given user.
 func (s *WalletSvc) CreateAccount(ctx context.Context, username string, accountType domain.AccountType, password string) (*domain.Account, error) {
 	if !accountType.IsValid() {

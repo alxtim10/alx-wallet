@@ -105,6 +105,7 @@ type LedgerEntry struct {
 // Infrastructure (postgres, redis) implements these interfaces.
 
 type AccountRepository interface {
+	GetAll(ctx context.Context) ([]*Account, error)
 	Create(ctx context.Context, username string, accountType AccountType, password string) (*Account, error)
 	TopUp(ctx context.Context, username string, balance Money) (*Account, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*Account, error)
@@ -132,6 +133,7 @@ type RecordTransferRequest struct {
 // ─── Service Interface ───────────────────────────────────────────────────────
 
 type WalletService interface {
+	GetAllAccounts(ctx context.Context) ([]*Account, error)
 	CreateAccount(ctx context.Context, username string, accountType AccountType, password string) (*Account, error)
 	TopUp(ctx context.Context, username string, balance Money) (*Account, error)
 	GetBalance(ctx context.Context, username string) (Money, error)

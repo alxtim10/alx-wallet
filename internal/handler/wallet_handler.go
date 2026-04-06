@@ -28,6 +28,7 @@ func NewWalletHandler(svc domain.WalletService, log *zap.Logger) *WalletHandler 
 func (h *WalletHandler) RegisterRoutes(r *gin.Engine) {
 	v1 := r.Group("/api")
 	{
+		v1.GET("/accounts", h.GetAllAccounts)
 		v1.POST("/accounts", h.CreateAccount)
 		v1.POST("/topup", h.TopUp)
 		// v1.GET("/accounts/:username/balance", h.GetBalance)
@@ -49,6 +50,16 @@ type createAccountResponse struct {
 	Type      string `json:"type"`
 	Balance   int64  `json:"balance"`
 	CreatedAt string `json:"created_at"`
+}
+
+func (h *WalletHandler) GetAllAccounts(c *gin.Context) {
+	accounts, err := h.svc.GetAllAccounts(c.Request.Context())
+	if err != nil {
+		appErr := apperror.FromDomain(err)
+		c.JSON(appErr.Code, appErr)
+		return
+	}
+	c.JSON(http.StatusOK, accounts)
 }
 
 func (h *WalletHandler) CreateAccount(c *gin.Context) {

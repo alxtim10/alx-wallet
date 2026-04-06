@@ -29,6 +29,32 @@ func NewAccountRepo(db *pgxpool.Pool) *AccountRepo {
 	return &AccountRepo{db: db}
 }
 
+func (r *AccountRepo) GetAll(ctx context.Context) ([]*domain.Account, error) {
+	rows, err := r.db.Query(ctx,
+		`SELECT id, username, type, balance, created_at FROM accounts`,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("account get all: %w", err)
+	}
+	defer rows.Close()
+
+	var accounts []*domain.Account
+	for rows.Next() {
+		acc, err := scanAccount(rows)
+		if err != nil {
+			return nil, fmt.Errorf("account get all: %w", err)
+		}
+		accounts = append(accounts, acc)
+	}
+
+	// ✅ also important: check for iteration errors
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("account get all: %w", err)
+	}
+
+	return accounts, nil
+}
+
 // Create inserts a new account and returns the fully populated domain model.
 func (r *AccountRepo) Create(ctx context.Context, username string, accountType domain.AccountType, password string) (*domain.Account, error) {
 
